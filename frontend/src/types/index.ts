@@ -46,12 +46,15 @@ export interface KpiResponse {
 export interface HealthSummaryResponse {
   period: Period;
   overall: Record<HealthStatus, number>;
+  overall_entities: Record<HealthStatus, string[]>;
   per_team: Record<string, Record<HealthStatus, number>>;
+  per_team_entities: Record<string, Record<HealthStatus, string[]>>;
 }
 
 export interface TrendBucket {
   bucket: string;
   counts: Record<string, number>;
+  entities?: Record<string, string[]>;
 }
 
 export interface TrendResponse {
@@ -64,7 +67,9 @@ export interface ChangeSummaryResponse {
   period: Period;
   total_changes: number;
   change_status: Record<string, number>;
+  change_status_entities: Record<string, string[]>;
   four_eye_status: Record<string, number>;
+  four_eye_status_entities: Record<string, string[]>;
 }
 
 export interface ChangeItem {

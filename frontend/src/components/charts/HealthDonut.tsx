@@ -1,17 +1,20 @@
 import { Pie } from "@ant-design/plots";
 import { HEALTH_COLORS } from "../../theme/colors";
+import { entityTooltipItems } from "./chartUtils";
 import type { HealthStatus } from "../../types";
 
 const ORDER: HealthStatus[] = ["Green", "Amber", "Red", "No Data"];
 
 export interface HealthDonutProps {
   counts: Record<string, number>;
+  entities?: Record<string, string[]>;
 }
 
-export function HealthDonut({ counts }: HealthDonutProps) {
+export function HealthDonut({ counts, entities }: HealthDonutProps) {
   const data = ORDER.filter((status) => (counts[status] ?? 0) > 0).map((status) => ({
     status,
     value: counts[status] ?? 0,
+    entities: entities?.[status] ?? [],
   }));
 
   return (
@@ -25,6 +28,7 @@ export function HealthDonut({ counts }: HealthDonutProps) {
       }}
       label={{ text: "value", style: { fontWeight: 600 } }}
       legend={{ color: { position: "bottom", layout: { justifyContent: "center" } } }}
+      tooltip={{ items: entityTooltipItems("value", "Applications") }}
       autoFit
     />
   );

@@ -2,11 +2,18 @@ import { useMonitoringSummary } from "../../api/hooks/useAnalytics";
 import { RUN_STATUS_COLORS, URL_STATUS_COLORS } from "../../theme/colors";
 import type { DashboardFilters } from "../../types";
 import { ChartCard } from "./ChartCard";
-import { TrendLineChart } from "./TrendLineChart";
+import { TrendBarChart } from "./TrendBarChart";
 import { isTrendEmpty } from "./chartUtils";
 
 const RUN_ORDER = ["Success", "Failure", "Yet to Run"];
 const URL_ORDER = ["Operational", "Non Operational"];
+
+const ENTITY_LABEL: Record<MonitoringCategoryCardProps["category"], string> = {
+  url: "Applications",
+  job: "Jobs",
+  interface: "Interfaces",
+  critical_file: "Files",
+};
 
 export interface MonitoringCategoryCardProps {
   category: "url" | "job" | "interface" | "critical_file";
@@ -22,7 +29,12 @@ export function MonitoringCategoryCard({ category, title, filters }: MonitoringC
 
   return (
     <ChartCard title={title} loading={isLoading} isEmpty={isTrendEmpty(data?.buckets)}>
-      <TrendLineChart buckets={data?.buckets ?? []} order={order} colorMap={colorMap} />
+      <TrendBarChart
+        buckets={data?.buckets ?? []}
+        order={order}
+        colorMap={colorMap}
+        entityLabel={ENTITY_LABEL[category]}
+      />
     </ChartCard>
   );
 }

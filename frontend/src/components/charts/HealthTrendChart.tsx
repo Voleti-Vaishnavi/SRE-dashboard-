@@ -1,6 +1,6 @@
 import { Column } from "@ant-design/plots";
 import { HEALTH_COLORS } from "../../theme/colors";
-import { flattenBuckets } from "./chartUtils";
+import { entityTooltipItems, flattenBuckets } from "./chartUtils";
 import type { HealthStatus, TrendBucket } from "../../types";
 
 const ORDER: HealthStatus[] = ["Green", "Amber", "Red", "No Data"];
@@ -24,6 +24,7 @@ export function HealthTrendChart({ buckets }: HealthTrendChartProps) {
       }}
       axis={{ x: { labelAutoRotate: true } }}
       legend={{ color: { position: "bottom", layout: { justifyContent: "center" } } }}
+      tooltip={{ items: entityTooltipItems("count", "Applications") }}
       autoFit
     />
   );

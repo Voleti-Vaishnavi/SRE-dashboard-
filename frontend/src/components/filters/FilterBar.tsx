@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Segmented, Select, DatePicker, Space } from "antd";
 import dayjs from "dayjs";
 import type { Dayjs } from "dayjs";
@@ -12,6 +13,13 @@ const GRANULARITY_OPTIONS: { label: string; value: Granularity }[] = [
   { label: "Monthly", value: "monthly" },
   { label: "Yearly", value: "yearly" },
 ];
+
+const DATE_MODE_OPTIONS = [
+  { label: "Range", value: "range" },
+  { label: "Single Day", value: "single" },
+] as const;
+
+type DateMode = (typeof DATE_MODE_OPTIONS)[number]["value"];
 
 export interface FilterBarProps {
   filters: DashboardFilters;
@@ -30,11 +38,15 @@ export function FilterBar({
 }: FilterBarProps) {
   const { data: teams } = useTeams();
   const { data: applications } = useApplications(filters.teamId);
+  const [dateMode, setDateMode] = useState<DateMode>("range");
 
   const rangeValue: [Dayjs, Dayjs] | undefined =
     filters.startDate && filters.endDate
       ? [dayjs(filters.startDate), dayjs(filters.endDate)]
       : undefined;
+
+  const singleValue: Dayjs | undefined =
+    dateMode === "single" && filters.startDate ? dayjs(filters.startDate) : undefined;
 
   return (
     <Space wrap size="middle" style={{ marginBottom: 16 }}>
@@ -45,20 +57,47 @@ export function FilterBar({
           onChange={(value) => onChange({ ...filters, granularity: value as Granularity })}
         />
       )}
-      <RangePicker
-        value={rangeValue}
-        onChange={(values) =>
-          onChange({
-            ...filters,
-            startDate: values?.[0]?.format("YYYY-MM-DD"),
-            endDate: values?.[1]?.format("YYYY-MM-DD"),
-          })
-        }
+
+      <Segmented
+        options={[...DATE_MODE_OPTIONS]}
+        value={dateMode}
+        onChange={(value) => {
+          const mode = value as DateMode;
+          setDateMode(mode);
+          if (mode === "single") {
+            const day = (filters.endDate ? dayjs(filters.endDate) : dayjs()).format("YYYY-MM-DD");
+            onChange({ ...filters, granularity: "daily", startDate: day, endDate: day });
+          } else {
+            onChange({ ...filters, startDate: undefined, endDate: undefined });
+          }
+        }}
       />
+
+      {dateMode === "single" ? (
+        <DatePicker
+          value={singleValue}
+          onChange={(value) => {
+            const day = value?.format("YYYY-MM-DD");
+            onChange({ ...filters, startDate: day, endDate: day });
+          }}
+        />
+      ) : (
+        <RangePicker
+          value={rangeValue}
+          onChange={(values) =>
+            onChange({
+              ...filters,
+              startDate: values?.[0]?.format("YYYY-MM-DD"),
+              endDate: values?.[1]?.format("YYYY-MM-DD"),
+            })
+          }
+        />
+      )}
+
       {showTeamFilter && (
         <Select
           allowClear
-          placeholder="All Teams"
+          placeholder="All Towers"
           style={{ minWidth: 180 }}
           value={filters.teamId}
           options={(teams ?? []).map((t) => ({ label: t.name, value: t.id }))}

@@ -6,7 +6,7 @@ import { ChartCard } from "../../components/charts/ChartCard";
 import { HealthDonut } from "../../components/charts/HealthDonut";
 import { HealthTrendChart } from "../../components/charts/HealthTrendChart";
 import { ChangesTable } from "../../components/ChangesTable";
-import { isTrendEmpty } from "../../components/charts/chartUtils";
+import { isTrendEmpty, latestPeriodLabel } from "../../components/charts/chartUtils";
 import {
   latestHealthByApplication,
   useDailyHealth,
@@ -34,10 +34,11 @@ export function TeamDetail() {
   const { data: healthTrend, isLoading: healthTrendLoading } = useHealthTrend(filters);
   const { data: dailyHealth } = useDailyHealth(filters);
   const latestHealthByApp = latestHealthByApplication(dailyHealth);
+  const periodLabel = latestPeriodLabel(filters.granularity);
 
   return (
     <div>
-      <Typography.Title level={3}>{team?.name ?? "Team"}</Typography.Title>
+      <Typography.Title level={3}>{team?.name ?? "Tower"}</Typography.Title>
       <FilterBar
         filters={baseFilters}
         onChange={setBaseFilters}
@@ -48,11 +49,11 @@ export function TeamDetail() {
       <Row gutter={[16, 16]} align="stretch" style={{ height: 300 }}>
         <Col xs={24} md={8}>
           <ChartCard
-            title="Health Distribution (Latest Day)"
+            title={`Health Distribution (${periodLabel})`}
             loading={healthSummaryLoading}
             isEmpty={!healthSummary || Object.values(healthSummary.overall).every((v) => v === 0)}
           >
-            <HealthDonut counts={healthSummary?.overall ?? {}} />
+            <HealthDonut counts={healthSummary?.overall ?? {}} entities={healthSummary?.overall_entities} />
           </ChartCard>
         </Col>
         <Col xs={24} md={16}>
@@ -84,7 +85,7 @@ export function TeamDetail() {
               render: (medal: string) => <Tag color={MEDAL_COLORS[medal]}>{medal}</Tag>,
             },
             {
-              title: "Health (Latest Day)",
+              title: `Health (${periodLabel})`,
               dataIndex: "id",
               render: (id: number) => {
                 const status = latestHealthByApp.get(id)?.health_status ?? "No Data";

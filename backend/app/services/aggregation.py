@@ -44,3 +44,35 @@ def group_counts_by_bucket(
     for d, status in rows:
         buckets[bucket_key(d, granularity)][status] += 1
     return {k: dict(v) for k, v in sorted(buckets.items())}
+
+
+def group_counts_and_entities_by_bucket(
+    rows: list[tuple[date, str, str]], granularity: str
+) -> dict[str, dict]:
+    """rows: list of (date, status_value, entity_name) — entity_name is whatever
+    contributed to that count (an application name, "App: Job Name", etc).
+    Returns {bucket: {"counts": {status: count}, "entities": {status: [names]}}}
+    sorted by bucket, with entity names de-duplicated and sorted per status."""
+    counts: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+    entities: dict[str, dict[str, set]] = defaultdict(lambda: defaultdict(set))
+    for d, status, entity_name in rows:
+        key = bucket_key(d, granularity)
+        counts[key][status] += 1
+        entities[key][status].add(entity_name)
+
+    return {
+        k: {
+            "counts": dict(counts[k]),
+            "entities": {status: sorted(names) for status, names in entities[k].items()},
+        }
+        for k in sorted(counts.keys())
+    }
+
+
+def entity_lists_by_status(rows: list[tuple[str, str]]) -> dict[str, list[str]]:
+    """rows: list of (status_value, entity_name). Returns {status: [unique sorted names]},
+    for non-bucketed (single-snapshot) breakdowns like health-summary/change-summary."""
+    grouped: dict[str, set] = defaultdict(set)
+    for status, entity_name in rows:
+        grouped[status].add(entity_name)
+    return {status: sorted(names) for status, names in grouped.items()}

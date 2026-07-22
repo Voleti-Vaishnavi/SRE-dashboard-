@@ -14,9 +14,9 @@ from app.models import (
     UrlAvailability,
 )
 from app.services.aggregation import (
-    bucket_key,
     default_date_range,
-    group_counts_by_bucket,
+    entity_lists_by_status,
+    group_counts_and_entities_by_bucket,
     previous_period,
 )
 from app.utils.enums import ChangeStatus, FourEyeStatus, HealthStatus
@@ -156,16 +156,29 @@ def health_summary(
             latest_by_app[health.application_id] = (health, t_id, app_name)
 
     overall = {s.value: 0 for s in HealthStatus}
+    overall_entities: dict[str, list[str]] = {s.value: [] for s in HealthStatus}
     per_team: dict[int, dict[str, int]] = {}
-    for health, t_id, _ in latest_by_app.values():
+    per_team_entities: dict[int, dict[str, list[str]]] = {}
+    for health, t_id, app_name in latest_by_app.values():
         overall[health.health_status] += 1
+        overall_entities[health.health_status].append(app_name)
         per_team.setdefault(t_id, {s.value: 0 for s in HealthStatus})
+        per_team_entities.setdefault(t_id, {s.value: [] for s in HealthStatus})
         per_team[t_id][health.health_status] += 1
+        per_team_entities[t_id][health.health_status].append(app_name)
+
+    for entities in overall_entities.values():
+        entities.sort()
+    for team_entities in per_team_entities.values():
+        for entities in team_entities.values():
+            entities.sort()
 
     return {
         "period": {"start_date": start_date, "end_date": end_date},
         "overall": overall,
+        "overall_entities": overall_entities,
         "per_team": per_team,
+        "per_team_entities": per_team_entities,
     }
 
 
@@ -181,21 +194,24 @@ def health_trend(
     _validate_granularity(granularity)
     start_date, end_date = _resolve_range(db, ApplicationHealth, ApplicationHealth.date, start_date, end_date)
 
-    query = db.query(ApplicationHealth.date, ApplicationHealth.health_status).filter(
-        ApplicationHealth.date >= start_date, ApplicationHealth.date <= end_date
+    query = (
+        db.query(ApplicationHealth.date, ApplicationHealth.health_status, Application.name)
+        .join(Application, ApplicationHealth.application_id == Application.id)
+        .filter(ApplicationHealth.date >= start_date, ApplicationHealth.date <= end_date)
     )
     if team_id is not None:
-        query = query.join(Application, ApplicationHealth.application_id == Application.id).filter(
-            Application.team_id == team_id
-        )
+        query = query.filter(Application.team_id == team_id)
     if application_id is not None:
         query = query.filter(ApplicationHealth.application_id == application_id)
 
-    buckets = group_counts_by_bucket(query.all(), granularity)
+    buckets = group_counts_and_entities_by_bucket(query.all(), granularity)
     return {
         "granularity": granularity,
         "period": {"start_date": start_date, "end_date": end_date},
-        "buckets": [{"bucket": b, "counts": counts} for b, counts in buckets.items()],
+        "buckets": [
+            {"bucket": b, "counts": v["counts"], "entities": v["entities"]}
+            for b, v in buckets.items()
+        ],
     }
 
 
@@ -209,28 +225,33 @@ def change_summary(
 ) -> dict:
     start_date, end_date = _resolve_range(db, ChangeDeployment, ChangeDeployment.date, start_date, end_date)
 
-    query = db.query(ChangeDeployment).filter(
-        ChangeDeployment.date >= start_date, ChangeDeployment.date <= end_date
+    query = (
+        db.query(ChangeDeployment, Application.name)
+        .join(Application, ChangeDeployment.application_id == Application.id)
+        .filter(ChangeDeployment.date >= start_date, ChangeDeployment.date <= end_date)
     )
     if team_id is not None:
-        query = query.join(Application, ChangeDeployment.application_id == Application.id).filter(
-            Application.team_id == team_id
-        )
+        query = query.filter(Application.team_id == team_id)
     if application_id is not None:
         query = query.filter(ChangeDeployment.application_id == application_id)
 
     rows = query.all()
     change_status_counts = {s.value: 0 for s in ChangeStatus}
     four_eye_counts = {s.value: 0 for s in FourEyeStatus}
-    for r in rows:
-        change_status_counts[r.change_status] += 1
-        four_eye_counts[r.four_eye_status] += 1
+    for cd, _ in rows:
+        change_status_counts[cd.change_status] += 1
+        four_eye_counts[cd.four_eye_status] += 1
+
+    change_status_entities = entity_lists_by_status([(cd.change_status, app_name) for cd, app_name in rows])
+    four_eye_entities = entity_lists_by_status([(cd.four_eye_status, app_name) for cd, app_name in rows])
 
     return {
         "period": {"start_date": start_date, "end_date": end_date},
         "total_changes": len(rows),
         "change_status": change_status_counts,
+        "change_status_entities": change_status_entities,
         "four_eye_status": four_eye_counts,
+        "four_eye_status_entities": four_eye_entities,
     }
 
 
@@ -246,21 +267,24 @@ def change_trend(
     _validate_granularity(granularity)
     start_date, end_date = _resolve_range(db, ChangeDeployment, ChangeDeployment.date, start_date, end_date)
 
-    query = db.query(ChangeDeployment.date, ChangeDeployment.change_status).filter(
-        ChangeDeployment.date >= start_date, ChangeDeployment.date <= end_date
+    query = (
+        db.query(ChangeDeployment.date, ChangeDeployment.change_status, Application.name)
+        .join(Application, ChangeDeployment.application_id == Application.id)
+        .filter(ChangeDeployment.date >= start_date, ChangeDeployment.date <= end_date)
     )
     if team_id is not None:
-        query = query.join(Application, ChangeDeployment.application_id == Application.id).filter(
-            Application.team_id == team_id
-        )
+        query = query.filter(Application.team_id == team_id)
     if application_id is not None:
         query = query.filter(ChangeDeployment.application_id == application_id)
 
-    buckets = group_counts_by_bucket(query.all(), granularity)
+    buckets = group_counts_and_entities_by_bucket(query.all(), granularity)
     return {
         "granularity": granularity,
         "period": {"start_date": start_date, "end_date": end_date},
-        "buckets": [{"bucket": b, "counts": counts} for b, counts in buckets.items()],
+        "buckets": [
+            {"bucket": b, "counts": v["counts"], "entities": v["entities"]}
+            for b, v in buckets.items()
+        ],
     }
 
 
@@ -343,23 +367,35 @@ def monitoring_summary(
         raise HTTPException(status_code=400, detail=f"Unknown monitoring category '{category}'")
 
     start_date, end_date = _resolve_range(db, model, model.date, start_date, end_date)
+    item_field = ITEM_NAME_FIELDS.get(category)
+    item_col = getattr(model, item_field) if item_field else None
 
-    query = db.query(model.date, model.status).filter(
+    select_cols = [model.date, model.status, Application.name]
+    if item_col is not None:
+        select_cols.append(item_col)
+
+    query = db.query(*select_cols).join(Application, model.application_id == Application.id).filter(
         model.date >= start_date, model.date <= end_date
     )
     if team_id is not None:
-        query = query.join(Application, model.application_id == Application.id).filter(
-            Application.team_id == team_id
-        )
+        query = query.filter(Application.team_id == team_id)
     if application_id is not None:
         query = query.filter(model.application_id == application_id)
 
-    buckets = group_counts_by_bucket(query.all(), granularity)
+    if item_col is not None:
+        rows = [(d, status, f"{app_name}: {item_name}") for d, status, app_name, item_name in query.all()]
+    else:
+        rows = [(d, status, app_name) for d, status, app_name in query.all()]
+
+    buckets = group_counts_and_entities_by_bucket(rows, granularity)
     return {
         "category": category,
         "granularity": granularity,
         "period": {"start_date": start_date, "end_date": end_date},
-        "buckets": [{"bucket": b, "counts": counts} for b, counts in buckets.items()],
+        "buckets": [
+            {"bucket": b, "counts": v["counts"], "entities": v["entities"]}
+            for b, v in buckets.items()
+        ],
     }
 
 

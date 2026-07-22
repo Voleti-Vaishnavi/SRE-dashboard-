@@ -28,7 +28,7 @@ export function ApplicationsReference() {
               render: (name, record) => <Link to={`/applications/${record.id}`}>{name}</Link>,
             },
             {
-              title: "Team",
+              title: "Tower",
               dataIndex: "team_name",
               filters: Array.from(new Set((data ?? []).map((a) => a.team_name))).map((t) => ({
                 text: t,
