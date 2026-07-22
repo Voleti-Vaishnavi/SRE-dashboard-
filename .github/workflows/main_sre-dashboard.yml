@@ -82,7 +82,8 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: python-app
-          path: ${{ github.workspace }}
+          # ⬇️ UPDATED PATH: Recreates the backend directory so the deployment step can find it
+          path: ${{ github.workspace }}/backend
 
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v3
