@@ -1,33 +1,30 @@
-import { Line } from "@ant-design/plots";
+import { Column } from "@ant-design/plots";
 import { entityTooltipItems, flattenBuckets } from "./chartUtils";
 import type { TrendBucket } from "../../types";
 
-export interface TrendLineChartProps {
+export interface TrendBarChartProps {
   buckets: TrendBucket[];
   order: string[];
   colorMap: Record<string, string>;
   entityLabel?: string;
 }
 
-export function TrendLineChart({
-  buckets,
-  order,
-  colorMap,
-  entityLabel = "Applications",
-}: TrendLineChartProps) {
+/** Stacked column chart for status composition per period bucket — used where
+ * a multi-series line chart would be too visually busy for the available
+ * space (e.g. compact monitoring-category cards). */
+export function TrendBarChart({ buckets, order, colorMap, entityLabel = "Contributors" }: TrendBarChartProps) {
   const data = flattenBuckets(buckets, order);
 
   return (
-    <Line
+    <Column
       data={data}
       xField="bucket"
       yField="count"
       colorField="key"
-      shapeField="smooth"
+      stack
       scale={{
         color: { type: "ordinal", domain: order, range: order.map((k) => colorMap[k]) },
       }}
-      point={{ shapeField: "circle", sizeField: 4 }}
       axis={{ x: { labelAutoRotate: true } }}
       legend={{ color: { position: "bottom", layout: { justifyContent: "center" } } }}
       tooltip={{ items: entityTooltipItems("count", entityLabel) }}

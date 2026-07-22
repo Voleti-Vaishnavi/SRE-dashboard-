@@ -25,7 +25,7 @@ export function AppShell() {
       {
         key: "teams",
         icon: <TeamOutlined />,
-        label: "Teams",
+        label: "Towers",
         children: (teams ?? []).map((t) => ({ key: `/teams/${t.id}`, label: t.name })),
       },
       { key: "/applications", icon: <AppstoreOutlined />, label: "Applications" },
