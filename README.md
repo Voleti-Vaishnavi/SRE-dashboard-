@@ -9,6 +9,8 @@ cd backend
 venv\Scripts\python -m uvicorn app.main:app --reload --port 8001
 ```
 
+
+
 First time only (creates the DB, seeds teams/applications, and generates + ingests ~30 days of mock data):
 
 ```
